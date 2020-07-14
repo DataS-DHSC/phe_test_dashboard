@@ -142,61 +142,61 @@ colour = 'black')
 Change Over Time
 =======================================================================
 
-Column {data-width=1200, .tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
 
 ### 1-30
 
 ```{r}
-ggplotly(hist1, width = 1800, height = 850)
+ggplotly(hist1, height = 800, width = 1400)
 ```
 
 ### 31-60
 
 ```{r}
-ggplotly(hist2, width = 1800, height = 850)
+ggplotly(hist2, height = 800, width = 1400)
 ```
 
 ### 61-90
 
 ```{r}
-ggplotly(hist3, width = 1800, height = 850)
+ggplotly(hist3, height = 800, width = 1400)
 ```
 
 ### 91-120
 
 ```{r}
-ggplotly(hist4, width = 1800, height = 850)
+ggplotly(hist4, height = 800, width = 1400)
 ```
 
 ### 121-150
 
 ```{r}
-ggplotly(hist5, width = 1800, height = 850)
+ggplotly(hist5, height = 800, width = 1400)
 ```
 
 
-Most Postiive Tests 
+Most Positive Tests 
 =======================================================================
 
-Column {data-width=1200, .tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
 
 
 ### Across Pandemic
 ```{r}
-ggplotly(bar1, width = 1800, height = 850)
+ggplotly(bar1)
 ```
 
 ### Last week 
 ```{r}
-ggplotly(bar2, width = 1800, height = 850)
+ggplotly(bar2)
 ```
 
 Recent Change
 =======================================================================
 
-Column {data-width=1200, .tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
 
 
