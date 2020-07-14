@@ -148,31 +148,31 @@ Column {.tabset}
 ### 1-30
 
 ```{r}
-ggplotly(hist1, height = 800, width = 1400)
+ggplotly(hist1, height = 600, width = 1200)
 ```
 
 ### 31-60
 
 ```{r}
-ggplotly(hist2, height = 800, width = 1400)
+ggplotly(hist2, height = 600, width = 1200)
 ```
 
 ### 61-90
 
 ```{r}
-ggplotly(hist3, height = 800, width = 1400)
+ggplotly(hist3, height = 600, width = 1200)
 ```
 
 ### 91-120
 
 ```{r}
-ggplotly(hist4, height = 800, width = 1400)
+ggplotly(hist4, height = 600, width = 1200)
 ```
 
 ### 121-150
 
 ```{r}
-ggplotly(hist5, height = 800, width = 1400)
+ggplotly(hist5, height = 600, width = 1200)
 ```
 
 
