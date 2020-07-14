@@ -1,5 +1,5 @@
 ---
-title: "Coronavirus local authority tests"
+title: "Covid-19 Positive Tests by Local Authority"
 output: 
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -8,13 +8,13 @@ output:
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
-#library(shiny)
 library(dplyr)
 library(ggplot2)
 library(ggthemes)
 library(ggdark)
 library(DT)
 library(plotly)
+library(ggrepel)
 
 today_date <- Sys.Date()
 
@@ -56,7 +56,23 @@ df3$area <- factor(df3$area, levels = selected_names3)
 df4$area <- factor(df4$area, levels = selected_names4)
 df5$area <- factor(df5$area, levels = selected_names5)
 
-make_plot <- function(df){
+recent_week_all_df <- df %>% filter(date >= today_date -9 & date <= today_date - 3) %>%
+  group_by(area) %>% 
+  summarise(cases=sum(daily_cases)) %>% 
+  arrange(desc(cases)) 
+
+previous_week_all_df <- df %>% filter(date >= today_date -16 & date <= today_date - 10) %>%
+  group_by(area) %>% 
+  summarise(cases=sum(daily_cases)) %>% 
+  arrange(desc(cases)) 
+
+names(previous_week_all_df) <- c("area", "previous_week_cases")
+
+
+df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
+  mutate(change = cases - previous_week_cases)
+
+make_hist <- function(df){
   df %>%
   ggplot(aes(date, daily_cases))+
   geom_bar(stat = "identity", position = "stack") +
@@ -65,18 +81,18 @@ make_plot <- function(df){
   dark_mode(theme_fivethirtyeight())
 }
 
-plot1 <- make_plot(df1)
-plot2 <- make_plot(df2)
-plot3 <- make_plot(df3)
-plot4 <- make_plot(df4)
-plot5 <- make_plot(df5)
+hist1 <- make_hist(df1)
+hist2 <- make_hist(df2)
+hist3 <- make_hist(df3)
+hist4 <- make_hist(df4)
+hist5 <- make_hist(df5)
 
 
 df_latest <- df %>% filter(date == max(date)) %>% arrange(desc(cumulative_cases)) %>% head(20)
 
 chart_max <- round(max(df_latest$cumulative_cases), -3)
 
-make_hist <- function(df, key_var, chart_title){
+make_bar <- function(df, key_var, chart_title){
   df %>%
   ggplot(aes(x = reorder(area, df[[key_var]]), y = df[[key_var]])) +
   geom_bar(stat = "identity", fill  = "blue", width = 0.8) +
@@ -90,7 +106,7 @@ make_hist <- function(df, key_var, chart_title){
   theme_economist()
 }
   
-hist1 <- make_hist(df_latest, "cumulative_cases", "Cases across the pandemic")
+bar1 <- make_bar(df_latest, "cumulative_cases", "Cases across the pandemic")
 
 recent_week_df <- df %>% filter(date >= today_date -10 & date <= today_date - 3) %>%
   group_by(area) %>% 
@@ -100,15 +116,30 @@ recent_week_df <- df %>% filter(date >= today_date -10 & date <= today_date - 3)
 
 chart_max <- round(max(recent_week_df$cases), -2)
 
-hist2 <- make_hist(recent_week_df, "cases", paste("cases between", 
+bar2 <- make_bar(recent_week_df, "cases", paste("cases between", 
                                                   format(today_date -10,"%a %b %d"),
                                                   "and", 
                                                   format(today_date -3,"%a %b %d")
                                                   ))
 
+scatter <- ggplot(df_joined, aes(x = cases,
+y = change)) +
+geom_point(colour = "black", fill = "black", size = 2) +
+labs(title= "Cases last week vs. change from prevous week",
+subtitle = "",
+caption = "",
+x = "cases last week",
+y = "change since previous week") +
+geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
+box.padding   = 0.05,
+point.padding = 0.5,
+force = 10,
+segment.color = 'black',
+colour = 'black')
+
 ```
 
-Histograms
+Change Over Time
 =======================================================================
 
 Column {data-width=1200, .tabset}
@@ -117,64 +148,68 @@ Column {data-width=1200, .tabset}
 ### 1-30
 
 ```{r}
-ggplotly(plot1, width = 1800, height = 850)
+ggplotly(hist1, width = 1800, height = 850)
 ```
 
 ### 31-60
 
 ```{r}
-ggplotly(plot2, width = 1800, height = 850)
+ggplotly(hist2, width = 1800, height = 850)
 ```
 
 ### 61-90
 
 ```{r}
-ggplotly(plot3, width = 1800, height = 850)
+ggplotly(hist3, width = 1800, height = 850)
 ```
 
 ### 91-120
 
 ```{r}
-ggplotly(plot4, width = 1800, height = 850)
+ggplotly(hist4, width = 1800, height = 850)
 ```
 
 ### 121-150
 
 ```{r}
-ggplotly(plot5, width = 1800, height = 850)
+ggplotly(hist5, width = 1800, height = 850)
 ```
 
 
-Highest Number of Tests 
+Most Postiive Tests 
 =======================================================================
 
 Column {data-width=1200, .tabset}
 -----------------------------------------------------------------------
 
-
-### Last week 
-```{r}
-ggplotly(hist2, width = 1800, height = 850)
-```
 
 ### Across Pandemic
 ```{r}
-ggplotly(hist1, width = 1800, height = 850)
+ggplotly(bar1, width = 1800, height = 850)
 ```
 
-Tests relative to Historical
+### Last week 
+```{r}
+ggplotly(bar2, width = 1800, height = 850)
+```
+
+Recent Change
 =======================================================================
 
 Column {data-width=1200, .tabset}
 -----------------------------------------------------------------------
-#To follow
+
+
+### Cases last week vs. change since previous week
 ```{r}
+scatter
 ```
+
 
 About
 =======================================================================
 
-**The Coronavirus Dashboard**
+**PHE Postive Tests by Local Authority**
 
 Last updated: `r today_date`
 
