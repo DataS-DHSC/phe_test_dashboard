@@ -8,8 +8,7 @@ output:
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
 library(ggthemes)
 library(ggdark)
 library(DT)
@@ -23,47 +22,43 @@ my_drive <- ""
 df <- read.csv(paste0(my_drive, "coronavirus-cases_latest.csv")) 
 
 df <- df %>%
+  mutate_at('Specimen.date', ~ as.Date(.)) %>%
   filter(Area.type == "Upper tier local authority") %>%
-  select("Area.name", "Area.code","Specimen.date", "Daily.lab.confirmed.cases", "Cumulative.lab.confirmed.cases", "Cumulative.lab.confirmed.cases.rate") %>% 
+  select(Area.name, Area.code, Specimen.date, Daily.lab.confirmed.cases,
+    Cumulative.lab.confirmed.cases, Cumulative.lab.confirmed.cases.rate) %>% 
   rename(
-    "area" = `Area.name`,
-    "code" = `Area.code`,
-    "date" = `Specimen.date`, 
-    "daily_cases" = `Daily.lab.confirmed.cases`, 
-    "cumulative_cases" = `Cumulative.lab.confirmed.cases`, 
-    "cases_rate" = `Cumulative.lab.confirmed.cases.rate`
+    area = Area.name,
+    code = Area.code,
+    date = Specimen.date, 
+    daily_cases = Daily.lab.confirmed.cases, 
+    cumulative_cases = Cumulative.lab.confirmed.cases, 
+    cases_rate = Cumulative.lab.confirmed.cases.rate
   )
 
-names <- df %>% filter (date == max(date)) %>%
+la_names <- df %>% 
+  filter (date == max(date)) %>%
   arrange(desc(cases_rate)) %>%
   pull(area)
 
-selected_names1 <- names[1:30]
-selected_names2 <- names[31:60]
-selected_names3 <- names[61:90]
-selected_names4 <- names[91:120]
-selected_names5 <- names[121:150]
+las_split_by_batches_of_30 <- seq(1, 150, 30) %>%
+  lapply(
+    function(x) {
+      selected_names <- factor(la_names[x:(x + 29)])
+      df %>%
+        filter(area %in% selected_names)
+    }
+  )
 
-df1 <- df %>% filter(area %in% c(selected_names1))
-df2 <- df %>% filter(area %in% c(selected_names2))
-df3 <- df %>% filter(area %in% c(selected_names3))
-df4 <- df %>% filter(area %in% c(selected_names4))
-df5 <- df %>% filter(area %in% c(selected_names5))
-
-df1$area <- factor(df1$area, levels = selected_names1)
-df2$area <- factor(df2$area, levels = selected_names2)
-df3$area <- factor(df3$area, levels = selected_names3)
-df4$area <- factor(df4$area, levels = selected_names4)
-df5$area <- factor(df5$area, levels = selected_names5)
-
-recent_week_all_df <- df %>% filter(date >= today_date -9 & date <= today_date - 3) %>%
+recent_week_all_df <- df %>% 
+  filter(date >= today_date -9 & date <= today_date - 3) %>%
   group_by(area) %>% 
-  summarise(cases=sum(daily_cases)) %>% 
+  summarise(cases = sum(daily_cases)) %>% 
   arrange(desc(cases)) 
 
-previous_week_all_df <- df %>% filter(date >= today_date -16 & date <= today_date - 10) %>%
+previous_week_all_df <- df %>% 
+  filter(date >= today_date -16 & date <= today_date - 10) %>%
   group_by(area) %>% 
-  summarise(cases=sum(daily_cases)) %>% 
+  summarise(cases = sum(daily_cases)) %>% 
   arrange(desc(cases)) 
 
 names(previous_week_all_df) <- c("area", "previous_week_cases")
@@ -81,14 +76,14 @@ make_hist <- function(df){
   dark_mode(theme_fivethirtyeight())
 }
 
-hist1 <- make_hist(df1)
-hist2 <- make_hist(df2)
-hist3 <- make_hist(df3)
-hist4 <- make_hist(df4)
-hist5 <- make_hist(df5)
+histograms <- las_split_by_batches_of_30 %>%
+  lapply(make_hist)
 
 
-df_latest <- df %>% filter(date == max(date)) %>% arrange(desc(cumulative_cases)) %>% head(20)
+df_latest <- df %>% 
+  filter(date == max(date)) %>% 
+  arrange(desc(cumulative_cases)) %>% 
+  head(20)
 
 chart_max <- round(max(df_latest$cumulative_cases), -3)
 
@@ -108,19 +103,25 @@ make_bar <- function(df, key_var, chart_title){
   
 bar1 <- make_bar(df_latest, "cumulative_cases", "Cases across the pandemic")
 
-recent_week_df <- df %>% filter(date >= today_date -10 & date <= today_date - 3) %>%
+recent_week_df <- df %>% 
+  filter(date >= today_date -10 & date <= today_date - 3) %>%
   group_by(area) %>% 
-  summarise(cases=sum(daily_cases)) %>% 
+  summarise(cases = sum(daily_cases)) %>% 
   arrange(desc(cases)) %>%
   head(20)
 
 chart_max <- round(max(recent_week_df$cases), -2)
 
-bar2 <- make_bar(recent_week_df, "cases", paste("cases between", 
-                                                  format(today_date -10,"%a %b %d"),
-                                                  "and", 
-                                                  format(today_date -3,"%a %b %d")
-                                                  ))
+bar2 <- recent_week_all_df %>%
+  make_bar(
+    "cases",
+    paste(
+      "cases between", 
+      format(today_date -10,"%a %b %d"),
+      "and",
+      format(today_date -3,"%a %b %d")
+    )
+  )
 
 scatter <- ggplot(df_joined, aes(x = cases,
 y = change)) +
@@ -145,34 +146,9 @@ Change Over Time
 Column {.tabset}
 -----------------------------------------------------------------------
 
-### 1-30
-
 ```{r}
-ggplotly(hist1, height = 400, width = 800)
-```
-
-### 31-60
-
-```{r}
-ggplotly(hist2, height = 400, width = 800)
-```
-
-### 61-90
-
-```{r}
-ggplotly(hist3, height = 400, width = 800)
-```
-
-### 91-120
-
-```{r}
-ggplotly(hist4, height = 400, width = 800)
-```
-
-### 121-150
-
-```{r}
-ggplotly(hist5, height = 600, width = 1200)
+ #histograms %>%
+ #  lapply(ggplotly, height = 600, width = 1200)
 ```
 
 
