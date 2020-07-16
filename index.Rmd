@@ -146,11 +146,35 @@ Change Over Time
 Column {.tabset}
 -----------------------------------------------------------------------
 
+### 1-30
+
 ```{r}
- #histograms %>%
- #  lapply(ggplotly, height = 600, width = 1200)
+ggplotly(histograms[[1]], height = 400, width = 800)
 ```
 
+### 31-60
+
+```{r}
+ggplotly(histograms[[2]], height = 400, width = 800)
+```
+
+### 61-90
+
+```{r}
+ggplotly(histograms[[3]], height = 400, width = 800)
+```
+
+### 91-120
+
+```{r}
+ggplotly(histograms[[4]], height = 400, width = 800)
+```
+
+### 121-150
+
+```{r}
+ggplotly(histograms[[5]], height = 400, width = 800)
+```
 
 Most Positive Tests 
 =======================================================================
