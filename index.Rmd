@@ -14,6 +14,7 @@ library(ggdark)
 library(DT)
 library(plotly)
 library(ggrepel)
+source("swap_facet_colours.R")
 
 today_date <- Sys.Date()
 
@@ -45,7 +46,8 @@ las_split_by_batches_of_30 <- seq(1, 150, 30) %>%
     function(x) {
       selected_names <- factor(la_names[x:(x + 29)])
       df %>%
-        filter(area %in% selected_names)
+        filter(area %in% selected_names) %>%
+        mutate(area = factor(area))
     }
   )
 
@@ -69,15 +71,46 @@ df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
 
 make_hist <- function(df){
   df %>%
-  ggplot(aes(date, daily_cases))+
+  ggplot(aes(date, daily_cases, fill = colours))+
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~ area, scales = "free", ncol = 6) +
-  theme_fivethirtyeight() +
-  dark_mode(theme_fivethirtyeight())
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+    strip.text.x = element_text(size = 5)
+  ) +
+  scale_fill_manual(values = c('blue', 'orange'))
+}
+
+make_hist_all <- function(df){
+  df %>%
+    ggplot(aes(date, daily_cases, fill = area, shape = area))+
+    geom_bar(stat = "identity", position = "identity") +
+    theme_bw() +
+    theme(
+      #legend.position = "none",
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+    ) + 
+    ylab('Daily cases')
 }
 
 histograms <- las_split_by_batches_of_30 %>%
-  lapply(make_hist)
+  lapply(
+    function(x) {
+      colours <- x %>%
+        select(area) %>%
+        arrange(area) %>%
+        distinct %>%
+        mutate(colours = factor(swap_facet_colours(area))) %>%
+        select(-area) %>%
+        unlist
+      
+      x %>%
+      mutate(colours = factor(area, labels = colours)) %>%
+      make_hist
+    }
+  )
 
 
 df_latest <- df %>% 
@@ -149,31 +182,40 @@ Column {.tabset}
 ### 1-30
 
 ```{r}
-ggplotly(histograms[[1]], height = 400, width = 800)
+ggplotly(histograms[[1]], height = 600, width = 800)
 ```
 
 ### 31-60
 
 ```{r}
-ggplotly(histograms[[2]], height = 400, width = 800)
+ggplotly(histograms[[2]], height = 600, width = 800)
 ```
 
 ### 61-90
 
 ```{r}
-ggplotly(histograms[[3]], height = 400, width = 800)
+ggplotly(histograms[[3]], height = 600, width = 800)
 ```
 
 ### 91-120
 
 ```{r}
-ggplotly(histograms[[4]], height = 400, width = 800)
+ggplotly(histograms[[4]], height = 600, width = 800)
 ```
 
 ### 121-150
 
 ```{r}
-ggplotly(histograms[[5]], height = 400, width = 800)
+ggplotly(histograms[[5]], height = 600, width = 800)
+```
+
+### All histograms
+
+```{r}
+las_split_by_batches_of_30 %>%
+  bind_rows %>%
+  make_hist_all %>%
+  ggplotly
 ```
 
 Most Positive Tests 
