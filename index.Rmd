@@ -69,49 +69,19 @@ names(previous_week_all_df) <- c("area", "previous_week_cases")
 df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
   mutate(change = cases - previous_week_cases)
 
-make_hist <- function(df){
+make_hist <- function(df) {
   df %>%
-  ggplot(aes(date, daily_cases, fill = colours))+
-  geom_bar(stat = "identity", position = "stack") +
-  facet_wrap(~ area, scales = "free", ncol = 6) +
-  theme_bw() +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-    strip.text.x = element_text(size = 5)
-  ) +
-  scale_fill_manual(values = c('blue', 'orange'))
-}
-
-make_hist_all <- function(df){
-  df %>%
-    ggplot(aes(date, daily_cases, fill = area, shape = area))+
+    ggplot(aes(date, daily_cases, fill = area))+
     geom_bar(stat = "identity", position = "identity") +
     theme_bw() +
     theme(
-      #legend.position = "none",
-      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+      legend.title = element_blank()#,
+      #axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
     ) + 
+    ggtitle('Histogram of daily positive Covid-19 tests by Local Authority') + 
+    xlab('') + 
     ylab('Daily cases')
 }
-
-histograms <- las_split_by_batches_of_30 %>%
-  lapply(
-    function(x) {
-      colours <- x %>%
-        select(area) %>%
-        arrange(area) %>%
-        distinct %>%
-        mutate(colours = factor(swap_facet_colours(area))) %>%
-        select(-area) %>%
-        unlist
-      
-      x %>%
-      mutate(colours = factor(area, labels = colours)) %>%
-      make_hist
-    }
-  )
-
 
 df_latest <- df %>% 
   filter(date == max(date)) %>% 
@@ -126,11 +96,12 @@ make_bar <- function(df, key_var, chart_title){
   geom_bar(stat = "identity", fill  = "blue", width = 0.8) +
   scale_y_continuous(breaks = seq(0, chart_max, by = chart_max/10)) +
   coord_flip() +
-  labs(x = "", y = "", 
-       title = chart_title) +
+  labs(x = "", y = "", title = chart_title) +
   theme(axis.text.x = element_text(angle = 45)) +
-  theme(axis.title = element_text(size = 14, colour = "black"),
-        axis.text.y = element_text(size = 11, face = "bold")) +
+  theme(
+    axis.title = element_text(size = 14, colour = "black"),
+    axis.text.y = element_text(size = 11, face = "bold")
+  ) +
   theme_economist()
 }
   
@@ -173,49 +144,19 @@ colour = 'black')
 
 ```
 
-Change Over Time
+Daily Cases Over Time
 =======================================================================
 
 Column {.tabset}
 -----------------------------------------------------------------------
 
-### 1-30
-
-```{r}
-ggplotly(histograms[[1]], height = 600, width = 800)
-```
-
-### 31-60
-
-```{r}
-ggplotly(histograms[[2]], height = 600, width = 800)
-```
-
-### 61-90
-
-```{r}
-ggplotly(histograms[[3]], height = 600, width = 800)
-```
-
-### 91-120
-
-```{r}
-ggplotly(histograms[[4]], height = 600, width = 800)
-```
-
-### 121-150
-
-```{r}
-ggplotly(histograms[[5]], height = 600, width = 800)
-```
-
-### All histograms
+### All Local Authorities
 
 ```{r}
 las_split_by_batches_of_30 %>%
   bind_rows %>%
-  make_hist_all %>%
-  ggplotly
+  make_hist %>%
+  ggplotly(tooltip = c('x', 'y', 'fill'))
 ```
 
 Most Positive Tests 
