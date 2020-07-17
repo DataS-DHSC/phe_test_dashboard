@@ -200,3 +200,11 @@ To follow
 
 **Data**
 PHE coronvirus dashboard
+
+**Using the plots interactively**
+
+- Histogram of daily positive Covid-19 tests by Local Authority (LA)
+  - At first view, the plot displays the histograms from all LAs on top of each other
+  - For LA-specific histograms, double-click on the LA of choice on the legend on the right-hand side of the plot
+  - Hovering over the histogram bars activates a tooltip with additional information
+  - Hovering over the plot area activates a toolbar with additional options. The toolbar is a default feature of the software used to create the plot, so it may or may not prove useful
