@@ -11,7 +11,7 @@ output:
   background-color:#00ad93;
   border-color:black;
 }
-<style>
+</style> 
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
