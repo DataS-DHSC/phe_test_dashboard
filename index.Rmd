@@ -110,7 +110,7 @@ make_bar <- function(df, key_var, chart_title){
   theme(axis.text.x = element_text(angle = 45)) +
   theme(axis.title = element_text(size = 14, colour = "black"),
         axis.text.y = element_text(size = 11, face = "bold")) +
-  theme_economist()
+  theme_minimal()
 }
   
 bar1 <- make_bar(df_latest, "cumulative_cases", "Cases across the pandemic")
