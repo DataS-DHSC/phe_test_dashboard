@@ -6,6 +6,12 @@ output:
     vertical_layout: fill
 ---
 
+<style>                     
+.navbar {
+  background-color:#00ad93;
+  border-color:black;
+}
+
 ```{r setup, include=FALSE}
 library(flexdashboard)
 library(dplyr)
@@ -123,12 +129,12 @@ bar2 <- make_bar(recent_week_df, "cases", paste("Cases between",
                                                   ))
 
 scatter <- ggplot(df_joined, aes(x = cases, y = change)) +
-  geom_point(colour = "#00ad93", fill = "#00ad93", size = 2) +
-  labs(title= "Cases last week vs. change from prevous week",
+  geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$cases/50) +
+  labs(title= "Cases last week vs. change prevous week",
        subtitle = "",
        caption = "",
-       x = "cases last week",
-       y = "change since previous week") +
+       x = "Cases last week",
+       y = "Change since previous week") +
   theme_minimal() +
   geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
                   box.padding   = 0.05,
@@ -200,7 +206,7 @@ Column {.tabset}
 -----------------------------------------------------------------------
 
 
-### Cases last week vs. change since previous week
+### Cases last week vs. change previous week
 ```{r}
 scatter
 ```
