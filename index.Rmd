@@ -95,10 +95,10 @@ chart_max <- round(max(df_latest$cumulative_cases), -3)
 make_bar <- function(df, key_var, chart_title){
   df %>%
   ggplot(aes(x = reorder(area, df[[key_var]]), y = df[[key_var]])) +
-  geom_bar(stat = "identity", fill  = "blue", width = 0.8) +
+  geom_bar(stat = "identity", fill  = "#00ad93", width = 0.8) +
   scale_y_continuous(breaks = seq(0, chart_max, by = chart_max/10)) +
   coord_flip() +
-  labs(x = "", y = "", 
+  labs(x = "Local Authority", y = "Cases", 
        title = chart_title) +
   theme(axis.text.x = element_text(angle = 45)) +
   theme(axis.title = element_text(size = 14, colour = "black"),
@@ -108,7 +108,7 @@ make_bar <- function(df, key_var, chart_title){
   
 bar1 <- make_bar(df_latest, "cumulative_cases", "Cases across the pandemic")
 
-recent_week_df <- df %>% filter(date >= today_date -10 & date <= today_date - 3) %>%
+recent_week_df <- df %>% filter(date >= today_date -9 & date <= today_date - 3) %>%
   group_by(area) %>% 
   summarise(cases=sum(daily_cases)) %>% 
   arrange(desc(cases)) %>%
@@ -116,26 +116,26 @@ recent_week_df <- df %>% filter(date >= today_date -10 & date <= today_date - 3)
 
 chart_max <- round(max(recent_week_df$cases), -2)
 
-bar2 <- make_bar(recent_week_df, "cases", paste("cases between", 
-                                                  format(today_date -10,"%a %b %d"),
+bar2 <- make_bar(recent_week_df, "cases", paste("Cases between", 
+                                                  format(today_date -9,"%a %b %d"),
                                                   "and", 
                                                   format(today_date -3,"%a %b %d")
                                                   ))
 
-scatter <- ggplot(df_joined, aes(x = cases,
-y = change)) +
-geom_point(colour = "black", fill = "black", size = 2) +
-labs(title= "Cases last week vs. change from prevous week",
-subtitle = "",
-caption = "",
-x = "cases last week",
-y = "change since previous week") +
-geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
-box.padding   = 0.05,
-point.padding = 0.5,
-force = 10,
-segment.color = 'black',
-colour = 'black')
+scatter <- ggplot(df_joined, aes(x = cases, y = change)) +
+  geom_point(colour = "#00ad93", fill = "#00ad93", size = 2) +
+  labs(title= "Cases last week vs. change from prevous week",
+       subtitle = "",
+       caption = "",
+       x = "cases last week",
+       y = "change since previous week") +
+  theme_minimal() +
+  geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
+                  box.padding   = 0.05,
+                  point.padding = 0.5,
+                  force = 10,
+                  segment.color = 'black',
+                  colour = 'black')
 
 ```
 
