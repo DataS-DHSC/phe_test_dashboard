@@ -4,6 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    runtime: shiny
 ---
 
 <style>                     
@@ -22,6 +23,7 @@ library(ggdark)
 library(DT)
 library(plotly)
 library(ggrepel)
+library(shiny)
 
 today_date <- Sys.Date()
 
@@ -30,6 +32,7 @@ my_drive <- ""
 df <- read.csv(paste0(my_drive, "coronavirus-cases_latest.csv")) 
 
 df <- df %>%
+  mutate_at('Specimen.date', ~ as.Date(.)) %>%
   filter(Area.type == "Upper tier local authority") %>%
   select("Area.name", "Area.code","Specimen.date", "Daily.lab.confirmed.cases", "Cumulative.lab.confirmed.cases", "Cumulative.lab.confirmed.cases.rate") %>% 
   rename(
@@ -40,28 +43,6 @@ df <- df %>%
     "cumulative_cases" = `Cumulative.lab.confirmed.cases`, 
     "cases_rate" = `Cumulative.lab.confirmed.cases.rate`
   )
-
-names <- df %>% filter (date == max(date)) %>%
-  arrange(desc(cases_rate)) %>%
-  pull(area)
-
-selected_names1 <- names[1:30]
-selected_names2 <- names[31:60]
-selected_names3 <- names[61:90]
-selected_names4 <- names[91:120]
-selected_names5 <- names[121:150]
-
-df1 <- df %>% filter(area %in% c(selected_names1))
-df2 <- df %>% filter(area %in% c(selected_names2))
-df3 <- df %>% filter(area %in% c(selected_names3))
-df4 <- df %>% filter(area %in% c(selected_names4))
-df5 <- df %>% filter(area %in% c(selected_names5))
-
-df1$area <- factor(df1$area, levels = selected_names1)
-df2$area <- factor(df2$area, levels = selected_names2)
-df3$area <- factor(df3$area, levels = selected_names3)
-df4$area <- factor(df4$area, levels = selected_names4)
-df5$area <- factor(df5$area, levels = selected_names5)
 
 recent_week_all_df <- df %>% filter(date >= today_date -9 & date <= today_date - 3) %>%
   group_by(area) %>% 
@@ -79,20 +60,33 @@ names(previous_week_all_df) <- c("area", "previous_week_cases")
 df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
   mutate(change = cases - previous_week_cases)
 
-make_hist <- function(df){
+make_hist <- function(df) {
   df %>%
-  ggplot(aes(date, daily_cases))+
-  geom_bar(stat = "identity", position = "stack") +
-  facet_wrap(~ area, scales = "free", ncol = 6) +
-  theme_fivethirtyeight() +
-  dark_mode(theme_fivethirtyeight())
+    ggplot(
+      aes(
+        date, 
+        daily_cases, 
+        text = 
+          paste(
+            paste0('Local Authority: ', area),
+            '\n',
+            paste0('Day: ', date),
+            '\n',
+            paste0('Number of cases on that day: ', daily_cases)
+          ),
+        alpha = 0.5
+      )
+    ) +
+    geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
+    theme_bw() +
+    theme(
+      legend.position = 'none',
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    ) + 
+    xlab('') + 
+    ylab('Daily cases')
 }
-
-hist1 <- make_hist(df1)
-hist2 <- make_hist(df2)
-hist3 <- make_hist(df3)
-hist4 <- make_hist(df4)
-hist5 <- make_hist(df5)
 
 
 df_latest <- df %>% filter(date == max(date)) %>% arrange(desc(cumulative_cases)) %>% head(20)
@@ -144,42 +138,53 @@ scatter <- ggplot(df_joined, aes(x = cases, y = change)) +
                   segment.color = 'black',
                   colour = 'black')
 
-```
+histogram_app <- shinyApp(
+  ui = fluidPage(    
+    
+    # Give the page a title
+    titlePanel('Histogram of daily positive Covid-19 tests by Local Authority'),
+    
+    # Generate a row with a sidebar
+    sidebarLayout(      
+      
+      # Define the sidebar with one input
+      sidebarPanel(
+        selectInput("area", "Local Authority:", 
+                    choices = sort(unique(df$area))),
+        hr()
+      ),
+      
+      # Create a spot for the barplot
+      mainPanel(
+        plotOutput("daily_cases_hist")  
+      )
+    )
+  ), 
+  server = function(input, output) {
+    
+    # Fill in the spot we created for a plot
+    output$daily_cases_hist <- renderPlot({
+      
+      df %>%
+        filter(
+          area == input$area
+        ) %>%
+        make_hist
+    })
+  }
+)
 
-Change Over Time
+```
+Daily Cases Over Time
 =======================================================================
 
 Column {.tabset}
 -----------------------------------------------------------------------
 
-### 1-30
+### All Local Authorities
 
 ```{r}
-ggplotly(hist1, height = 400, width = 800)
-```
-
-### 31-60
-
-```{r}
-ggplotly(hist2, height = 400, width = 800)
-```
-
-### 61-90
-
-```{r}
-ggplotly(hist3, height = 400, width = 800)
-```
-
-### 91-120
-
-```{r}
-ggplotly(hist4, height = 400, width = 800)
-```
-
-### 121-150
-
-```{r}
-ggplotly(hist5, height = 600, width = 1200)
+histogram_app
 ```
 
 
