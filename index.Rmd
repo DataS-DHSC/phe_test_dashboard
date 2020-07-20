@@ -170,11 +170,11 @@ bar2 <- recent_week_all_df %>%
 scatter <- df_joined %>%
   ggplot(aes(x = cases, y = change)) +
   geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$change / 50) +
-  labs(title= "Cases up to last week vs. change up to previous week",
+  labs(title= "Cases last week vs. change prevous week",
        subtitle = "",
        caption = "",
-       x = "Cases up to last week",
-       y = "Change up to previous week") +
+       x = "Cases last week",
+       y = "Change since previous week") +
   geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
                   box.padding   = 0.05,
                   point.padding = 0.5,
