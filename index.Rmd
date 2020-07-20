@@ -4,17 +4,26 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    runtime: shiny
 ---
+
+<style>                     
+.navbar {
+  background-color:#00ad93;
+  border-color:black;
+}
+</style> 
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
 library(tidyverse)
+library(tidyquant)
 library(ggthemes)
 library(ggdark)
 library(DT)
 library(plotly)
 library(ggrepel)
-source("swap_facet_colours.R")
+library(shiny)
 
 today_date <- Sys.Date()
 
@@ -28,28 +37,28 @@ df <- df %>%
   select(Area.name, Area.code, Specimen.date, Daily.lab.confirmed.cases,
     Cumulative.lab.confirmed.cases, Cumulative.lab.confirmed.cases.rate) %>% 
   rename(
-    area = Area.name,
-    code = Area.code,
-    date = Specimen.date, 
-    daily_cases = Daily.lab.confirmed.cases, 
-    cumulative_cases = Cumulative.lab.confirmed.cases, 
-    cases_rate = Cumulative.lab.confirmed.cases.rate
-  )
-
-la_names <- df %>% 
-  filter (date == max(date)) %>%
-  arrange(desc(cases_rate)) %>%
-  pull(area)
-
-las_split_by_batches_of_30 <- seq(1, 150, 30) %>%
-  lapply(
-    function(x) {
-      selected_names <- factor(la_names[x:(x + 29)])
-      df %>%
-        filter(area %in% selected_names) %>%
-        mutate(area = factor(area))
-    }
-  )
+    area = 'Area.name',
+    code = 'Area.code',
+    date = 'Specimen.date', 
+    daily_cases = 'Daily.lab.confirmed.cases', 
+    cumulative_cases = 'Cumulative.lab.confirmed.cases', 
+    cases_rate = 'Cumulative.lab.confirmed.cases.rate'
+  ) %>%
+  group_by(area) %>%
+  tq_mutate(
+    # tq_mutate args
+    select = cumulative_cases,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width = 7,
+    align = "right",
+    FUN = mean,
+    # mean args
+    na.rm = TRUE,
+    # tq_mutate args
+    col_rename = "rolling_mean_7_days_per_la"
+  ) %>%
+  ungroup
 
 recent_week_all_df <- df %>% 
   filter(date >= today_date -9 & date <= today_date - 3) %>%
@@ -58,7 +67,7 @@ recent_week_all_df <- df %>%
   arrange(desc(cases)) 
 
 previous_week_all_df <- df %>% 
-  filter(date >= today_date -16 & date <= today_date - 10) %>%
+  filter(date >= today_date -16 & date <= today_date - 9) %>%
   group_by(area) %>% 
   summarise(cases = sum(daily_cases)) %>% 
   arrange(desc(cases)) 
@@ -71,54 +80,67 @@ df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
 
 make_hist <- function(df) {
   df %>%
-    ggplot(aes(date, daily_cases, fill = area))+
-    geom_bar(stat = "identity", position = "identity") +
+    ggplot(
+      aes(
+        date, 
+        daily_cases, 
+        text = 
+          paste(
+            paste0('Local Authority: ', area),
+            '\n',
+            paste0('Day: ', date),
+            '\n',
+            paste0('Number of cases on that day: ', daily_cases)
+          ),
+        alpha = 0.5
+      )
+    ) +
+    geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
     theme_bw() +
     theme(
-      legend.title = element_blank()#,
-      #axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+      legend.position = 'none',
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
     ) + 
-    ggtitle('Histogram of daily positive Covid-19 tests by Local Authority') + 
     xlab('') + 
     ylab('Daily cases')
 }
 
 make_bar <- function(df, key_var, chart_title, top_how_many = 20) {
   df %>%
-    slice(1:top_how_many) %>%
     select(area, all_of(key_var)) %>%
     group_by(area) %>%
     summarize_all(max) %>%
     ungroup %>%
-    rename(key_var = key_var) %>%
+    rename(key_var = all_of(key_var)) %>%
     arrange(key_var) %>%
-    mutate(
-      area = factor(area, levels = area),
-      colour_swapping = factor(area, labels = swap_facet_colours(area))
-    ) %>%
+    mutate(area = factor(area, levels = area)) %>%
+    arrange(desc(all_of(key_var))) %>%
+    slice(1:top_how_many) %>%
     ggplot(
       aes(
         area, 
         key_var, 
-        fill = colour_swapping, 
         text = 
           paste(
             paste0('Local Authority: ', area),
             '\n',
             paste0('Number of cases: ', key_var)
-          )
+          ),
+        alpha = 0.5
       )
     ) +
-    geom_bar(stat = "identity", width = 0.8) +
+    geom_bar(stat = "identity", width = 0.8, fill = '#00ad93', ) +
     coord_flip() +
     labs(x = "", y = "", title = chart_title) +
     theme_bw() +
     theme(
       legend.position = 'none',
       axis.title = element_text(size = 14, colour = "black"),
-      axis.text.y = element_text(size = 11, face = "bold")
-    ) + 
-    scale_fill_manual(values = c('blue', 'orange'))
+      axis.text.y = element_text(size = 11, face = "bold"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
 }
   
 bar1 <- make_bar(
@@ -147,21 +169,61 @@ bar2 <- recent_week_all_df %>%
     )
   )
 
-scatter <- ggplot(df_joined, aes(x = cases,
-y = change)) +
-geom_point(colour = "black", fill = "black", size = 2) +
-labs(title= "Cases last week vs. change from prevous week",
-subtitle = "",
-caption = "",
-x = "cases last week",
-y = "change since previous week") +
-geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
-box.padding   = 0.05,
-point.padding = 0.5,
-force = 10,
-segment.color = 'black',
-colour = 'black')
+scatter <- df_joined %>%
+  ggplot(aes(x = cases, y = change)) +
+  geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$cases / 50) +
+  labs(title= "Cases last week vs. change prevous week",
+       subtitle = "",
+       caption = "",
+       x = "Cases last week",
+       y = "Change since previous week") +
+  geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
+                  box.padding   = 0.05,
+                  point.padding = 0.5,
+                  force = 10,
+                  segment.color = 'black',
+                  colour = 'black') +
+  theme_bw() + 
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  )
 
+histogram_app <- shinyApp(
+  ui = fluidPage(    
+    
+    # Give the page a title
+    titlePanel('Histogram of daily positive Covid-19 tests by Local Authority'),
+    
+    # Generate a row with a sidebar
+    sidebarLayout(      
+      
+      # Define the sidebar with one input
+      sidebarPanel(
+        selectInput("area", "Local Authority:", 
+          choices = sort(unique(df$area))),
+        hr()
+      ),
+      
+      # Create a spot for the barplot
+      mainPanel(
+        plotOutput("daily_cases_hist")  
+      )
+    )
+  ), 
+  server = function(input, output) {
+    
+    # Fill in the spot we created for a plot
+    output$daily_cases_hist <- renderPlot({
+      
+      df %>%
+        filter(
+          area == input$area
+        ) %>%
+        make_hist
+    })
+  }
+)
 ```
 
 Daily Cases Over Time
@@ -173,10 +235,7 @@ Column {.tabset}
 ### All Local Authorities
 
 ```{r}
-las_split_by_batches_of_30 %>%
-  bind_rows %>%
-  make_hist %>%
-  ggplotly(tooltip = c('x', 'y', 'fill'))
+histogram_app
 ```
 
 Most Positive Tests 
@@ -227,4 +286,10 @@ PHE coronvirus dashboard
   - At first view, the plot displays the histograms from all LAs on top of each other
   - For LA-specific histograms, double-click on the LA of choice on the legend on the right-hand side of the plot
   - Hovering over the histogram bars activates a tooltip with additional information
+  - Hovering over the plot area activates a toolbar with additional options. The toolbar is a default feature of the software used to create the plot, so it may or may not prove useful
+
+- Bar plots of total number of cases (whole period or last week) per LA
+  - The 20 LAs with the highest number of cases are plotted
+  - The swap between blue and orange bars is for making it easier to distinguish between consecutive bars
+  - Hovering over the bars activates a tooltip with the actual number of cases in each LA
   - Hovering over the plot area activates a toolbar with additional options. The toolbar is a default feature of the software used to create the plot, so it may or may not prove useful
