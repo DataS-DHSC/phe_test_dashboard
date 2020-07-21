@@ -184,7 +184,11 @@ scatter <- df_joined %>%
         paste(
           paste0('Local Authority: ', area),
           '\n',
+<<<<<<< HEAD
          paste0('Number of new cases within time period: ', change)
+=======
+         paste0('Number of cases: ', change)
+>>>>>>> cb48fc55c892fe353ae77e714f9a707e9c63bd47
         )
     )
   ) +
