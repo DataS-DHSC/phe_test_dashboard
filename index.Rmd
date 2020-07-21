@@ -24,12 +24,14 @@ library(DT)
 library(plotly)
 library(ggrepel)
 library(shiny)
+library(httr)
 
 today_date <- Sys.Date()
 
-my_drive <- ""
-
-df <- read.csv(paste0(my_drive, "coronavirus-cases_latest.csv")) 
+tmp <- tempfile()
+GET("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases_latest.csv", write_disk(tmp))
+readLines(tmp)
+df <- read.csv(tmp)
 
 df <- df %>%
   mutate_at('Specimen.date', ~ as.Date(.)) %>%
@@ -134,7 +136,7 @@ make_bar <- function(df, key_var, chart_title, top_how_many = 20) {
         alpha = 0.5
       )
     ) +
-    geom_bar(stat = "identity", width = 0.8, fill = '#00ad93', ) +
+    geom_bar(stat = "identity", width = 0.8, fill = '#00ad93') +
     coord_flip() +
     labs(x = "", y = "", title = chart_title) +
     theme_bw() +
@@ -167,20 +169,39 @@ bar2 <- recent_week_df %>%
     "cases",
     paste(
       "Cases between", 
-      format(today_date -9,"%a %b %d"),
+      format(today_date - 9,"%a %b %d"),
       "and",
-      format(today_date -3,"%a %b %d")
+      format(today_date - 3,"%a %b %d")
     )
   )
 
 scatter <- df_joined %>%
-  ggplot(aes(x = cases, y = change)) +
+  ggplot(
+    aes(
+      x = cases, 
+      y = change,
+      text = 
+        paste(
+          paste0('Local Authority: ', area),
+          '\n',
+         paste0('Number of new cases within time period: ', change)
+        )
+    )
+  ) +
   geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$change / 50) +
-  labs(title= "Cases last week vs. change prevous week",
-       subtitle = "",
-       caption = "",
-       x = "Cases last week",
-       y = "Change since previous week") +
+  labs(
+    title = 
+    paste(
+      "Cases up to", 
+      format(today_date - 9,"%a %b %d"),
+      "vs. cases up to",
+      format(today_date - 16,"%a %b %d")
+    ),
+    subtitle = "",
+    caption = "",
+    x = "Cases last week",
+    y = "Change since previous week"
+  ) +
   geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
                   box.padding   = 0.05,
                   point.padding = 0.5,
@@ -268,7 +289,7 @@ Column {.tabset}
 
 ### Cases last week vs. change since previous week
 ```{r}
-scatter
+ggplotly(scatter, tooltip = c('text'))
 ```
 
 
