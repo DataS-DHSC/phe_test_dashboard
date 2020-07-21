@@ -60,6 +60,12 @@ df <- df %>%
   ) %>%
   ungroup
 
+# I need this so that filtering doesn't return zero-row data frames
+# Ideally, data will be automaticall y download, so this piece of code is temp only
+if (today_date > max(df$date)) {
+  today_date <- max(df$date)
+}
+
 recent_week_all_df <- df %>% 
   filter(date <= today_date - 9) %>%
   group_by(area) %>% 
@@ -149,14 +155,14 @@ bar1 <- make_bar(
 )
 
 recent_week_df <- df %>% 
-  filter(date >= today_date -9 & date <= today_date - 3) %>%
+  filter(date >= today_date - 9 & date <= today_date - 3) %>%
   group_by(area) %>% 
   summarise(cases = sum(daily_cases)) %>% 
   arrange(desc(cases))
 
 chart_max <- round(max(recent_week_df$cases), -2)
 
-bar2 <- recent_week_all_df %>%
+bar2 <- recent_week_df %>%
   make_bar(
     "cases",
     paste(
