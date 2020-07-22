@@ -22,16 +22,16 @@ library(ggthemes)
 library(ggdark)
 library(DT)
 library(plotly)
-library(ggrepel)
 library(shiny)
 library(httr)
 
 today_date <- Sys.Date()
 
-tmp <- tempfile()
-GET("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases_latest.csv", write_disk(tmp))
-readLines(tmp)
-df <- read.csv(tmp)
+#tmp <- tempfile()
+#GET("https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases_latest.csv", write_disk(tmp))
+#readLines(tmp)
+#df <- read.csv(tmp)
+df <- read.csv('coronavirus-cases_latest.csv')
 
 df <- df %>%
   mutate_at('Specimen.date', ~ as.Date(.)) %>%
@@ -49,7 +49,7 @@ df <- df %>%
   group_by(area) %>%
   tq_mutate(
     # tq_mutate args
-    select = cumulative_cases,
+    select = daily_cases,
     mutate_fun = rollapply, 
     # rollapply args
     width = 7,
@@ -58,9 +58,35 @@ df <- df %>%
     # mean args
     na.rm = TRUE,
     # tq_mutate args
-    col_rename = "rolling_mean_7_days_per_la"
+    col_rename = "daily_cases_rolling_mean_7_days_per_la"
   ) %>%
-  ungroup
+ ungroup
+
+df <- df %>%
+  group_by(date) %>%
+  summarise(daily_cases_rolling_mean_7_days_per_la_mean = mean(daily_cases_rolling_mean_7_days_per_la)) %>%
+  ungroup %>%
+  tq_mutate(
+    # tq_mutate args
+    select = daily_cases_rolling_mean_7_days_per_la_mean,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width = 7,
+    align = "right",
+    FUN = mean,
+    # mean args
+    na.rm = TRUE,
+    # tq_mutate args
+    col_rename = "daily_cases_rolling_mean_7_days_all_las"
+  ) %>%
+  select(-daily_cases_rolling_mean_7_days_per_la_mean) %>%
+  right_join(df) %>%
+  mutate_at(
+    c(
+      "daily_cases_rolling_mean_7_days_per_la", 
+      "daily_cases_rolling_mean_7_days_all_las"
+    ), 
+    round)
 
 # I need this so that filtering doesn't return zero-row data frames
 # Ideally, data will be automaticall y download, so this piece of code is temp only
@@ -98,10 +124,19 @@ make_hist <- function(df) {
             '\n',
             paste0('Number of cases on that day: ', daily_cases)
           ),
-        alpha = 0.5
+        alpha = 0.5,
+        group = area
       )
     ) +
     geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
+    geom_line(aes(date, daily_cases_rolling_mean_7_days_per_la)) +
+    geom_line(aes(date, daily_cases_rolling_mean_7_days_all_las), linetype = "dotted") +
+    scale_colour_manual(
+      values = c("daily_cases_rolling_mean_7_days_per_la" = "#39809E",
+               "daily_cases_rolling_mean_7_days_all_las" = "red"), 
+    name = NULL, 
+    labels = "14-day rolling average"
+   ) +
     theme_bw() +
     theme(
       legend.position = 'none',
@@ -191,23 +226,21 @@ scatter <- df_joined %>%
   geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$change / 50) +
   labs(
     title = 
-    paste(
-      "Cases up to", 
-      format(today_date - 9,"%a %b %d"),
-      "vs. cases up to",
-      format(today_date - 16,"%a %b %d")
-    ),
+      paste0(
+        "Change in cumulative cases between ", 
+        format(today_date - 9, "%a %b %d"), 
+        " and ", 
+        format(today_date - 16, "%a %b %d")
+     ),
     subtitle = "",
     caption = "",
-    x = "Cases last week",
-    y = "Change since previous week"
+    x = 
+      paste0(
+        "Cumulative cases up to ", 
+        format(today_date - 9, "%a %b %d")
+    ),
+    y =  "Change in cumulative cases"
   ) +
-  geom_text_repel(aes(label = ifelse(abs(change) > 20, area,'')),
-                  box.padding   = 0.05,
-                  point.padding = 0.5,
-                  force = 10,
-                  segment.color = 'black',
-                  colour = 'black') +
   theme_bw() + 
   theme(
     panel.grid.major = element_blank(), 
@@ -287,7 +320,7 @@ Column {.tabset}
 -----------------------------------------------------------------------
 
 
-### Cases last week vs. change since previous week
+### Change in cumulative changes between last week and the previous week
 ```{r}
 ggplotly(scatter, tooltip = c('text'))
 ```
