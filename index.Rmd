@@ -94,21 +94,47 @@ if (today_date > max(df$date)) {
   today_date <- max(df$date)
 }
 
-recent_week_all_df <- df %>% 
-  filter(date <= today_date - 9) %>%
+cases_change <- df %>%
+  filter(
+    date >= today_date - 9, 
+    date <= today_date - 3
+  ) %>%
   group_by(area) %>% 
-  summarise(cases = sum(daily_cases))
-
-previous_week_all_df <- df %>% 
-  filter(date <= today_date - 16) %>%
-  group_by(area) %>% 
-  summarise(cases = sum(daily_cases))
-
-names(previous_week_all_df) <- c("area", "previous_week_cases")
-
-
-df_joined <- left_join(recent_week_all_df, previous_week_all_df) %>%
-  mutate(change = cases - previous_week_cases)
+  summarise(cases_recent_week_within = 
+    sum(daily_cases, na.rm = TRUE)) %>%
+  ungroup %>%
+  full_join(
+    df %>%
+      filter(
+        date >= today_date - 16, 
+        date <= today_date - 10
+      ) %>%
+      group_by(area) %>% 
+      summarise(cases_previous_week_within = 
+        sum(daily_cases, na.rm = TRUE)) %>%
+      ungroup
+  ) %>%
+  full_join(
+    df %>% 
+      filter(date <= today_date - 9) %>%
+      group_by(area) %>% 
+      summarise(cases_recent_week_cumulative = 
+        sum(daily_cases, na.rm = TRUE)) %>%
+      ungroup
+  ) %>%
+  full_join(
+    df %>% 
+      filter(date <= today_date - 16) %>%
+      group_by(area) %>% 
+      summarise(cases_previous_week_cumulative = 
+        sum(daily_cases, na.rm = TRUE)) %>%
+      ungroup
+  ) %>%
+  mutate(
+    change_within = cases_recent_week_within - cases_previous_week_within,
+    change_cumulative = 
+      cases_recent_week_cumulative - cases_previous_week_cumulative
+  )
 
 make_hist <- function(df) {
   df %>%
@@ -210,24 +236,25 @@ bar2 <- recent_week_df %>%
     )
   )
 
-scatter <- df_joined %>%
+scatter_cumulative <- cases_change %>%
   ggplot(
     aes(
-      x = cases, 
-      y = change,
+      x = cases_recent_week_cumulative, 
+      y = change_cumulative,
       text = 
         paste(
           paste0('Local Authority: ', area),
           '\n',
-         paste0('Number of new cases within time period: ', change)
+         paste0('Number of new cases within time period: ', change_cumulative)
         )
     )
   ) +
-  geom_point(colour = "#00ad93", fill = "#00ad93", size = df_joined$change / 50) +
+  geom_point(colour = "#00ad93", fill = "#00ad93", 
+    size = abs(cases_change$change_cumulative) / 50) +
   labs(
     title = 
       paste0(
-        "Change in cumulative cases between ", 
+        "Increase in cumulative cases between ", 
         format(today_date - 9, "%a %b %d"), 
         " and ", 
         format(today_date - 16, "%a %b %d")
@@ -239,7 +266,51 @@ scatter <- df_joined %>%
         "Cumulative cases up to ", 
         format(today_date - 9, "%a %b %d")
     ),
-    y =  "Change in cumulative cases"
+    y =  "Change in cases"
+  ) +
+  theme_bw() + 
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  )
+
+scatter_within <- cases_change %>%
+  ggplot(
+    aes(
+      x = cases_recent_week_within, 
+      y = change_within,
+      text = 
+        paste(
+          paste0('Local Authority: ', area),
+          '\n',
+          paste0('Change in cases within time period: ', change_within)
+        )
+    )
+  ) +
+  geom_point(colour = "#00ad93", fill = "#00ad93", 
+    size = abs(cases_change$change_within) / 50) +
+  labs(
+    title = 
+      paste0(
+        "Change in cases between week ", 
+        format(today_date - 15, "%a %b %d"), 
+        " - ",
+        format(today_date - 9, "%a %b %d"), 
+        " and week ", 
+        format(today_date - 22, "%a %b %d"),
+        " - ",
+        format(today_date - 16, "%a %b %d")
+      ),
+    subtitle = "",
+    caption = "",
+    x = 
+      paste0(
+        "Cases in week ", 
+        format(today_date - 15, "%a %b %d"),
+        " - ",
+        format(today_date - 9, "%a %b %d")
+      ),
+    y =  "Change in cases"
   ) +
   theme_bw() + 
   theme(
@@ -320,11 +391,15 @@ Column {.tabset}
 -----------------------------------------------------------------------
 
 
-### Change in cumulative changes between last week and the previous week
+### Change in cumulative cases
 ```{r}
-ggplotly(scatter, tooltip = c('text'))
+ggplotly(scatter_cumulative, tooltip = c('text'))
 ```
 
+### Change in weekly cases
+```{r}
+ggplotly(scatter_within, tooltip = c('text'))
+```
 
 About
 =======================================================================
