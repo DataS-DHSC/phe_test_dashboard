@@ -317,54 +317,32 @@ scatter_within <- cases_change %>%
     panel.grid.major = element_blank(), 
     panel.grid.minor = element_blank()
   )
-
-histogram_app <- shinyApp(
-  ui = fluidPage(    
-    
-    # Give the page a title
-    titlePanel('Histogram of daily positive Covid-19 tests by Local Authority'),
-    
-    # Generate a row with a sidebar
-    sidebarLayout(      
-      
-      # Define the sidebar with one input
-      sidebarPanel(
-        selectInput("area", "Local Authority:", 
-          choices = sort(unique(df$area))),
-        hr()
-      ),
-      
-      # Create a spot for the barplot
-      mainPanel(
-        plotOutput("daily_cases_hist")  
-      )
-    )
-  ), 
-  server = function(input, output) {
-    
-    # Fill in the spot we created for a plot
-    output$daily_cases_hist <- renderPlot({
-      
-      df %>%
-        filter(
-          area == input$area
-        ) %>%
-        make_hist
-    })
-  }
-)
 ```
 
 Daily Cases Over Time
 =======================================================================
-
-Column {.tabset}
+  
+Column {.sidebar}
 -----------------------------------------------------------------------
-
-### All Local Authorities
-
+  
 ```{r}
-histogram_app
+selectInput("area", "Local Authority:", 
+  choices = sort(unique(df$area)))
+```
+
+Column
+-----------------------------------------------------------------------
+  
+### Daily positive Covid-19 tests by Local Authority
+  
+```{r}
+renderPlot({
+  df %>%
+    filter(
+      area == input$area
+    ) %>%
+    make_hist
+})
 ```
 
 Most Positive Tests 
