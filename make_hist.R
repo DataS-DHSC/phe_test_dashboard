@@ -9,7 +9,7 @@ make_hist <- function(x) {
             paste0('Local Authority: ', area),
             '\n',
             paste0('Number of cases on ', 
-              format(date, format="%d/%m/%Y"), ': ', daily_cases),
+              format(date, format = "%d/%m/%Y"), ': ', daily_cases),
             '\n',
             paste0('Seven-day rolling mean (this LA): ', 
               daily_cases_rolling_mean_7_days_per_la)
@@ -25,12 +25,6 @@ make_hist <- function(x) {
     geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
     geom_line(aes(date, daily_cases_rolling_mean_7_days_per_la)) +
     geom_line(aes(date, daily_cases_rolling_mean_7_days_all_las), linetype = "dotted") +
-    scale_colour_manual(
-      values = c("daily_cases_rolling_mean_7_days_per_la" = "#39809E",
-                 "daily_cases_rolling_mean_7_days_all_las" = "red"), 
-      name = NULL, 
-      labels = "14-day rolling average"
-    ) +
     theme_bw() +
     theme(
       legend.position = 'none',
