@@ -24,6 +24,11 @@ library(DT)
 library(plotly)
 library(shiny)
 library(httr)
+source('make_hist.R')
+source('make_bar.R')
+source('data_for_barplots.R')
+source('scatter_within.R')
+source('scatter_cumulative.R')
 
 today_date <- Sys.Date()
 
@@ -64,7 +69,8 @@ df <- df %>%
 
 df <- df %>%
   group_by(date) %>%
-  summarise(daily_cases_rolling_mean_7_days_per_la_mean = mean(daily_cases_rolling_mean_7_days_per_la)) %>%
+  summarise(daily_cases_rolling_mean_7_days_per_la_mean = 
+    mean(daily_cases_rolling_mean_7_days_per_la, na.rm = TRUE)) %>%
   ungroup %>%
   tq_mutate(
     # tq_mutate args
@@ -135,206 +141,28 @@ cases_change <- df %>%
     change_cumulative = 
       cases_recent_week_cumulative - cases_previous_week_cumulative
   )
-
-make_hist <- function(df) {
-  df %>%
-    ggplot(
-      aes(
-        date, 
-        daily_cases, 
-        text = 
-          paste(
-            paste0('Local Authority: ', area),
-            '\n',
-            paste0('Day: ', date),
-            '\n',
-            paste0('Number of cases on that day: ', daily_cases)
-          ),
-        alpha = 0.5,
-        group = area
-      )
-    ) +
-    geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
-    geom_line(aes(date, daily_cases_rolling_mean_7_days_per_la)) +
-    geom_line(aes(date, daily_cases_rolling_mean_7_days_all_las), linetype = "dotted") +
-    scale_colour_manual(
-      values = c("daily_cases_rolling_mean_7_days_per_la" = "#39809E",
-               "daily_cases_rolling_mean_7_days_all_las" = "red"), 
-    name = NULL, 
-    labels = "14-day rolling average"
-   ) +
-    theme_bw() +
-    theme(
-      legend.position = 'none',
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank()
-    ) + 
-    xlab('') + 
-    ylab('Daily cases')
-}
-
-make_bar <- function(df, key_var, chart_title, top_how_many = 20) {
-  df %>%
-    select(area, all_of(key_var)) %>%
-    group_by(area) %>%
-    summarize_all(max) %>%
-    ungroup %>%
-    rename(key_var = all_of(key_var)) %>%
-    arrange(key_var) %>%
-    mutate(area = factor(area, levels = area)) %>%
-    arrange(desc(all_of(key_var))) %>%
-    slice(1:top_how_many) %>%
-    ggplot(
-      aes(
-        area, 
-        key_var, 
-        text = 
-          paste(
-            paste0('Local Authority: ', area),
-            '\n',
-            paste0('Number of cases: ', key_var)
-          ),
-        alpha = 0.5
-      )
-    ) +
-    geom_bar(stat = "identity", width = 0.8, fill = '#00ad93') +
-    coord_flip() +
-    labs(x = "", y = "", title = chart_title) +
-    theme_bw() +
-    theme(
-      legend.position = 'none',
-      axis.title = element_text(size = 14, colour = "black"),
-      axis.text.y = element_text(size = 11, face = "bold"),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank()
-    )
-}
-  
-bar1 <- make_bar(
-  df, 
-  "cumulative_cases", 
-  "Number of cases across the pandemic", 
-  top_how_many = 20
-)
-
-recent_week_df <- df %>% 
-  filter(date >= today_date - 9 & date <= today_date - 3) %>%
-  group_by(area) %>% 
-  summarise(cases = sum(daily_cases)) %>% 
-  arrange(desc(cases))
-
-chart_max <- round(max(recent_week_df$cases), -2)
-
-bar2 <- recent_week_df %>%
-  make_bar(
-    "cases",
-    paste(
-      "Cases between", 
-      format(today_date - 9,"%a %b %d"),
-      "and",
-      format(today_date - 3,"%a %b %d")
-    )
-  )
-
-scatter_cumulative <- cases_change %>%
-  ggplot(
-    aes(
-      x = cases_recent_week_cumulative, 
-      y = change_cumulative,
-      text = 
-        paste(
-          paste0('Local Authority: ', area),
-          '\n',
-         paste0('Number of new cases within time period: ', change_cumulative)
-        )
-    )
-  ) +
-  geom_point(colour = "#00ad93", fill = "#00ad93", 
-    size = abs(cases_change$change_cumulative) / 50) +
-  labs(
-    title = 
-      paste0(
-        "Increase in cumulative cases between ", 
-        format(today_date - 9, "%a %b %d"), 
-        " and ", 
-        format(today_date - 16, "%a %b %d")
-     ),
-    subtitle = "",
-    caption = "",
-    x = 
-      paste0(
-        "Cumulative cases up to ", 
-        format(today_date - 9, "%a %b %d")
-    ),
-    y =  "Change in cases"
-  ) +
-  theme_bw() + 
-  theme(
-    panel.grid.major = element_blank(), 
-    panel.grid.minor = element_blank()
-  )
-
-scatter_within <- cases_change %>%
-  ggplot(
-    aes(
-      x = cases_recent_week_within, 
-      y = change_within,
-      text = 
-        paste(
-          paste0('Local Authority: ', area),
-          '\n',
-          paste0('Change in cases within time period: ', change_within)
-        )
-    )
-  ) +
-  geom_point(colour = "#00ad93", fill = "#00ad93", 
-    size = abs(cases_change$change_within) / 50) +
-  labs(
-    title = 
-      paste0(
-        "Change in cases between week ", 
-        format(today_date - 15, "%a %b %d"), 
-        " - ",
-        format(today_date - 9, "%a %b %d"), 
-        " and week ", 
-        format(today_date - 22, "%a %b %d"),
-        " - ",
-        format(today_date - 16, "%a %b %d")
-      ),
-    subtitle = "",
-    caption = "",
-    x = 
-      paste0(
-        "Cases in week ", 
-        format(today_date - 15, "%a %b %d"),
-        " - ",
-        format(today_date - 9, "%a %b %d")
-      ),
-    y =  "Change in cases"
-  ) +
-  theme_bw() + 
-  theme(
-    panel.grid.major = element_blank(), 
-    panel.grid.minor = element_blank()
-  )
 ```
 
 Daily Cases Over Time
 =======================================================================
-  
+
 Column {.sidebar}
 -----------------------------------------------------------------------
-  
 ```{r}
 selectInput("area", "Local Authority:", 
   choices = sort(unique(df$area)))
 ```
 
+Histogram displays, for each Local Authority (LA), the number of daily Covid-19 cases from 30 Jan 2020 up to the most recent date for which data are available. A seven-day rolling mean for the LA in display is represented by the **solid line**. The **dotted** line is the seven-day rolling mean averaged over _all_ LAs (when data for one of more LA are unavailable, the latter rolling mean is calculated only from the LAs for which data are available).
+
+***
+
+**How to use**: Please choose your LA of interest in the filter above: click on the arrow, hit the Backspace button and type in your LA or select it from the drop-down list.
+
 Column
 -----------------------------------------------------------------------
   
 ### Daily positive Covid-19 tests by Local Authority
-  
 ```{r}
 renderPlot({
   df %>%
@@ -351,15 +179,98 @@ Most Positive Tests
 Column {.tabset}
 -----------------------------------------------------------------------
 
-
 ### Across Pandemic
 ```{r}
-ggplotly(bar1, tooltip = c('text'))
+# NOTE: For each bar plot in this tabset, two data frames are used, one with data for pos. cases across the pandemic and the other one for last week. At first, I defined a temp data frame for the first case and then used the same object name for the second case. But Shiny didn't like that, and it would always grab the data from the first temp data frame. I've therefore assigned each data frame into a different object name.
+
+pos_tests_across_pandemic <- df %>%
+  data_for_barplots(
+    key_var = 'cumulative_cases', batch_size = 20, FUN = mean,
+    dates_filter = c('1900-01-01', '3000-01-01')
+  )
+shinyApp(
+  ui = fluidPage(    
+    
+    # Give the page a title
+    titlePanel('Histogram of daily positive Covid-19 tests by Local Authority'),
+    
+    # Generate a row with a sidebar
+    sidebarLayout(      
+      
+      # Define the sidebar with one input
+      sidebarPanel(
+        selectInput("batch_tag", "Local Authorities are sorted in descending order (in terms of number of                positive tests) and shown in batches of 20. Choose a batch:", 
+          choices = pos_tests_across_pandemic$batch_tag),
+        hr()
+      ),
+      
+      # Create a spot for the barplot
+      mainPanel(
+        plotlyOutput("daily_cases_hist")  
+      )
+    )
+  ), 
+  server = function(input, output) {
+    
+    # Fill in the spot we created for a plot
+    output$daily_cases_hist <- renderPlotly({
+      pos_tests_across_pandemic %>%
+        filter(batch_tag == input$batch_tag) %>%
+        make_bar(chart_title = "Number of cases across the pandemic") %>%
+        ggplotly(tooltip = 'text')
+    })
+  }
+)
 ```
 
 ### Last week 
 ```{r}
-ggplotly(bar2, tooltip = c('text'))
+pos_tests_last_week <- df %>%
+  data_for_barplots(
+    key_var = 'daily_cases', batch_size = 20, FUN = sum,
+    dates_filter = c(today_date - 9, today_date - 3)
+  )
+shinyApp(
+  ui = fluidPage(    
+    
+    # Give the page a title
+    titlePanel('Histogram of daily positive Covid-19 tests by Local Authority'),
+    
+    # Generate a row with a sidebar
+    sidebarLayout(      
+      
+      # Define the sidebar with one input
+      sidebarPanel(
+        selectInput("batch_tag",  "Local Authorities are sorted in descending order (in terms of number of                positive tests) and shown in batches of 20. Choose a batch:",
+          choices = pos_tests_last_week$batch_tag),
+        hr()
+      ),
+      
+      # Create a spot for the barplot
+      mainPanel(
+        plotlyOutput("daily_cases_hist")  
+      )
+    )
+  ), 
+  server = function(input, output) {
+    
+    # Fill in the spot we created for a plot
+    output$daily_cases_hist <- renderPlotly({
+      pos_tests_last_week %>%
+        filter(batch_tag == input$batch_tag) %>%
+        make_bar(
+          chart_title = 
+            paste(
+              "Cases between", 
+              format(today_date - 9,"%a %b %d"),
+              "and",
+              format(today_date - 3,"%a %b %d")
+            )
+          ) %>%
+        ggplotly(tooltip = 'text')
+    })
+  }
+)
 ```
 
 Recent Change
@@ -368,15 +279,14 @@ Recent Change
 Column {.tabset}
 -----------------------------------------------------------------------
 
-
 ### Change in cumulative cases
 ```{r}
-ggplotly(scatter_cumulative, tooltip = c('text'))
+ggplotly(scatter_cumulative(cases_change, today_date), tooltip = c('text'))
 ```
 
 ### Change in weekly cases
 ```{r}
-ggplotly(scatter_within, tooltip = c('text'))
+ggplotly(scatter_within(cases_change, today_date), tooltip = c('text'))
 ```
 
 About
