@@ -92,7 +92,19 @@ df <- df %>%
       "daily_cases_rolling_mean_7_days_per_la", 
       "daily_cases_rolling_mean_7_days_all_las"
     ), 
-    round)
+    round
+  ) %>%
+  bind_rows(
+    df %>%
+      group_by(date) %>%
+      mutate_at(vars(contains('cases')), ~ round(sum(., na.rm = TRUE))) %>%
+      mutate(
+        area = 'All local authorities',
+        code = NA
+      ) %>%
+      ungroup %>%
+      distinct
+  )
 
 # I need this so that filtering doesn't return zero-row data frames
 # Ideally, data will be automaticall y download, so this piece of code is temp only
@@ -102,6 +114,7 @@ if (today_date > max(df$date)) {
 
 cases_change <- df %>%
   filter(
+    area != 'All local authorities',
     date >= today_date - 9, 
     date <= today_date - 3
   ) %>%
@@ -112,6 +125,7 @@ cases_change <- df %>%
   full_join(
     df %>%
       filter(
+        area != 'All local authorities',
         date >= today_date - 16, 
         date <= today_date - 10
       ) %>%
@@ -122,7 +136,10 @@ cases_change <- df %>%
   ) %>%
   full_join(
     df %>% 
-      filter(date <= today_date - 9) %>%
+      filter(
+        area != 'All local authorities',
+        date <= today_date - 9
+      ) %>%
       group_by(area) %>% 
       summarise(cases_recent_week_cumulative = 
         sum(daily_cases, na.rm = TRUE)) %>%
@@ -130,7 +147,10 @@ cases_change <- df %>%
   ) %>%
   full_join(
     df %>% 
-      filter(date <= today_date - 16) %>%
+      filter(
+        area != 'All local authorities',
+        date <= today_date - 16
+      ) %>%
       group_by(area) %>% 
       summarise(cases_previous_week_cumulative = 
         sum(daily_cases, na.rm = TRUE)) %>%
@@ -149,7 +169,7 @@ Daily Cases Over Time
 Column {.sidebar}
 -----------------------------------------------------------------------
 
-Histogram displays, for each Local Authority (LA), the number of daily Covid-19 cases from 30 Jan 2020 up to the most recent date for which data are available. A seven-day rolling mean for the LA in display is represented by the **solid line**. The **dotted** line is the seven-day rolling mean averaged over _all_ LAs (when data for one of more LA are unavailable, the latter rolling mean is calculated only from the LAs for which data are available).
+Histogram displays, for each Local Authority (LA), the number of daily Covid-19 cases from 30 Jan 2020 up to the most recent date for which data are available. A seven-day rolling mean for the LA in display is represented by the **solid line**. The **dotted** line is the seven-day rolling mean averaged over _all_ LAs (when data for one of more LA are unavailable, the latter rolling mean is calculated only from the LAs for which data are available). By default, the data are plotted for all local authorities (note that there is no dotted line in this case).
 
 ***
 
@@ -172,7 +192,7 @@ shinyApp(
       # Define the sidebar with one input
       sidebarPanel(
         selectInput("area", "Local Authority:", 
-                    choices = sort(unique(df$area))),
+          choices = sort(unique(df$area))),
         hr()
       ),
       
@@ -201,7 +221,7 @@ Most Positive Tests
 Column {.sidebar}
 -----------------------------------------------------------------------
 
-Bar plots display the number of number of positive tests per Local Authority (LA), across the pandemic or just for last week. The bars are sorted in descending order, so the LA with most postive tests appears at the top. For better display, the bars are plotted in batches of 20, so choosing '1-20' from the drop down list shows the 20 LAs with the highest numbers of positive tests, '21-40' displays the next 20 LAs etc.
+Bar plots display the number of positive tests per Local Authority (LA), across the pandemic or just for last week. The bars are sorted in descending order, so the LA with most postive tests appears at the top. For better display, the bars are plotted in batches of 20, so choosing '1-20' from the drop down list shows the 20 LAs with the highest numbers of positive tests, '21-40' displays the next 20 LAs etc.
 
 ***
 
@@ -210,53 +230,10 @@ Bar plots display the number of number of positive tests per Local Authority (LA
 Column {.tabset}
 -----------------------------------------------------------------------
 
-### Across Pandemic
-```{r}
-# NOTE: For each bar plot in this tabset, two data frames are used, one with data for pos. cases across the pandemic and the other one for last week. At first, I defined a temp data frame for the first case and then used the same object name for the second case. But Shiny didn't like that, and it would always grab the data from the first temp data frame. I've therefore assigned each data frame into a different object name.
-
-pos_tests_across_pandemic <- df %>%
-  data_for_barplots(
-    key_var = 'cumulative_cases', batch_size = 20, FUN = mean,
-    dates_filter = c('1900-01-01', '3000-01-01')
-  )
-shinyApp(
-  ui = fluidPage(    
-    
-    # Give the page a title
-    titlePanel('Number of cases across the pandemic'),
-    
-    # Generate a row with a sidebar
-    sidebarLayout(      
-      
-      # Define the sidebar with one input
-      sidebarPanel(
-        selectInput("batch_tag", "Batch:", 
-          choices = unique(pos_tests_across_pandemic$batch_tag)),
-        hr()
-      ),
-      
-      # Create a spot for the barplot
-      mainPanel(
-        plotlyOutput("daily_cases_hist")  
-      )
-    )
-  ), 
-  server = function(input, output) {
-    
-    # Fill in the spot we created for a plot
-    output$daily_cases_hist <- renderPlotly({
-      pos_tests_across_pandemic %>%
-        filter(batch_tag == input$batch_tag) %>%
-        make_bar(chart_title = "") %>%
-        ggplotly(tooltip = 'text')
-    })
-  }
-)
-```
-
 ### Last week 
 ```{r}
 pos_tests_last_week <- df %>%
+  filter(area != 'All local authorities') %>%
   data_for_barplots(
     key_var = 'daily_cases', batch_size = 20, FUN = sum,
     dates_filter = c(today_date - 9, today_date - 3)
@@ -303,13 +280,58 @@ shinyApp(
 )
 ```
 
+### Across Pandemic
+```{r}
+# NOTE: For each bar plot in this tabset, two data frames are used, one with data for pos. cases across the pandemic and the other one for last week. At first, I defined a temp data frame for the first case and then used the same object name for the second case. But Shiny didn't like that, and it would always grab the data from the first temp data frame. I've therefore assigned each data frame into a different object name.
+
+pos_tests_across_pandemic <- df %>%
+  filter(area != 'All local authorities') %>%
+  data_for_barplots(
+    key_var = 'cumulative_cases', batch_size = 20, FUN = mean,
+    dates_filter = c('1900-01-01', '3000-01-01')
+  )
+shinyApp(
+  ui = fluidPage(    
+    
+    # Give the page a title
+    titlePanel('Number of cases across the pandemic'),
+    
+    # Generate a row with a sidebar
+    sidebarLayout(      
+      
+      # Define the sidebar with one input
+      sidebarPanel(
+        selectInput("batch_tag", "Batch:", 
+          choices = unique(pos_tests_across_pandemic$batch_tag)),
+        hr()
+      ),
+      
+      # Create a spot for the barplot
+      mainPanel(
+        plotlyOutput("daily_cases_hist")  
+      )
+    )
+  ), 
+  server = function(input, output) {
+    
+    # Fill in the spot we created for a plot
+    output$daily_cases_hist <- renderPlotly({
+      pos_tests_across_pandemic %>%
+        filter(batch_tag == input$batch_tag) %>%
+        make_bar(chart_title = "") %>%
+        ggplotly(tooltip = 'text')
+    })
+  }
+)
+```
+
 Recent Change
 =======================================================================
 
 Column {.sidebar}
 -----------------------------------------------------------------------
 
-Scatter plots display, for each Local Authority (LA), change in positive tests, in two ways: (i) change in the total number of positive tests since the start of the pandemic between last week and the week before; and (ii) change in the total number of weekly positive tests between last week and the week before.
+Scatter plots display, for each Local Authority (LA), change in positive tests, in two ways: (i) change in the _total_ number of positive tests since the start of the pandemic between last week and the week before; and (ii) change in the number of _weekly_ positive tests between last week and the week before.
 
 ***
 
@@ -318,14 +340,14 @@ Scatter plots display, for each Local Authority (LA), change in positive tests, 
 Column {.tabset}
 -----------------------------------------------------------------------
 
-### Change in cumulative cases
-```{r}
-ggplotly(scatter_cumulative(cases_change, today_date), tooltip = c('text'))
-```
-
 ### Change in weekly cases
 ```{r}
 ggplotly(scatter_within(cases_change, today_date), tooltip = c('text'))
+```
+
+### Change in cumulative cases
+```{r}
+ggplotly(scatter_cumulative(cases_change, today_date), tooltip = c('text'))
 ```
 
 About
@@ -343,7 +365,7 @@ PHE coronvirus dashboard
 **Using the plots interactively**
 
 - Histogram of daily positive Covid-19 tests by Local Authority (LA)
-  - At first view, the plot displays the histograms from all LAs on top of each other
+  - At first view, the plot displays the histograms from All local authorities on top of each other
   - For LA-specific histograms, double-click on the LA of choice on the legend on the right-hand side of the plot
   - Hovering over the histogram bars activates a tooltip with additional information
   - Hovering over the plot area activates a toolbar with additional options. The toolbar is a default feature of the software used to create the plot, so it may or may not prove useful

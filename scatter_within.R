@@ -13,7 +13,7 @@ scatter_within <- function(x, today_date) {
       )
     ) +
     geom_point(colour = "#00ad93", fill = "#00ad93", 
-      size = abs(x$change_cumulative) / 50) +
+      size = abs(x$change_cumulative) / 50, alpha = 0.5) +
     labs(
       title = 
         paste0(

@@ -18,11 +18,11 @@ make_hist <- function(x) {
             paste0('Seven-day rolling mean (all LAs): ', 
               daily_cases_rolling_mean_7_days_all_las)
           ),
-        alpha = 0.5,
         group = area
       )
     ) +
-    geom_bar(stat = "identity", position = "identity", fill = "#00ad93") +
+    geom_bar(stat = "identity", position = "identity", 
+      fill = "#00ad93", alpha = 0.5) +
     geom_line(aes(date, daily_cases_rolling_mean_7_days_per_la)) +
     geom_line(aes(date, daily_cases_rolling_mean_7_days_all_las), linetype = "dotted") +
     theme_bw() +
